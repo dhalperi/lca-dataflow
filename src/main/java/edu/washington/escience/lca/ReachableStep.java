@@ -2,7 +2,7 @@ package edu.washington.escience.lca;
 
 import java.util.Set;
 
-import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Verify;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -24,6 +24,7 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 	private final TupleTag<KV<Integer, Reachable>> reachableOutTag;
 	private final TupleTag<KV<Integer, Reachable>> deltaOutTag;
 	private final int step;
+	private final String outputDirectory;
 
 	public ReachableStep(
 			TupleTag<KV<Integer, Reachable>> reachableInTag,
@@ -31,13 +32,15 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 			TupleTag<KV<Integer, Integer>> graphTag,
 			TupleTag<KV<Integer, Reachable>> reachableOutTag,
 			TupleTag<KV<Integer, Reachable>> deltaOutTag,
-			int step) {
+			int step,
+			String outputDirectory) {
 		this.reachableInTag = reachableInTag;
 		this.deltaInTag = deltaInTag;
 		this.graphTag = graphTag;
 		this.reachableOutTag = reachableOutTag;
 		this.deltaOutTag = deltaOutTag;
 		this.step = step;
+		this.outputDirectory = outputDirectory;
 	}
 
 	@Override
@@ -73,8 +76,8 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 					}}));
 
 		/* Join the oneHop edges with the old reachable to produce the new reachable and the new delta in one step. */
-		TupleTag<Reachable> keyedReachableTag = TupleTagUtil.makeTag();
-		TupleTag<Reachable> keyedJoinResultTag = TupleTagUtil.makeTag();
+		TupleTag<Reachable> keyedReachableTag = new TupleTag<Reachable>(){};
+		TupleTag<Reachable> keyedJoinResultTag = new TupleTag<Reachable>(){};
 		PCollection<KV<Integer, Reachable>> oldReachable = input.get(reachableInTag);
 
 		PCollectionTuple output = KeyedPCollectionTuple.of(keyedReachableTag, oldReachable)
@@ -90,10 +93,16 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 								KV<Integer, CoGbkResult> result = c.element();
 								Integer source = result.getKey();
 								CoGbkResult join = result.getValue();
+								Set<Integer> alreadyKnown = Sets.newHashSet();
 								Set<Reachable> newReachable = Sets.newHashSet(join.getAll(keyedReachableTag));
 								Set<Reachable> newDelta = Sets.newHashSet();
+								// Record all the destinations this src can already.
+								for (Reachable r : newReachable) {
+									Verify.verify(alreadyKnown.add(r.dst), "Adding already known destination %s to src %s", r.dst, source);
+								}
 								for (Reachable r : join.getAll(keyedJoinResultTag)) {
-									if (newReachable.add(r)) {
+									if (alreadyKnown.add(r.dst)) {
+										newReachable.add(r);
 										newDelta.add(r);
 									}
 								}
@@ -107,13 +116,13 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 								}
 							}}));
 
-		output.get(reachableOutTag)
-		.apply("StringifyReachable_"+step, ParDo.of(new StringifyReachable()))
-		.apply("OutputReachable_"+step, TextIO.Write.to("output/reachable" + step + ".txt"));
-
-		output.get(deltaOutTag)
-		.apply("StringifyDelta_"+step, ParDo.of(new StringifyReachable()))
-		.apply("OutputDelta_"+step, TextIO.Write.to("output/delta" + step + ".txt"));
+		//		output.get(reachableOutTag)
+		//		.apply("StringifyReachable_"+step, ParDo.of(new StringifyReachable()))
+		//		.apply("OutputReachable_"+step, TextIO.Write.to(outputDirectory + "/reachable" + step).withSuffix(".txt"));
+		//
+		//		output.get(deltaOutTag)
+		//		.apply("StringifyDelta_"+step, ParDo.of(new StringifyReachable()))
+		//		.apply("OutputDelta_"+step, TextIO.Write.to(outputDirectory + "/delta" + step).withSuffix(".txt"));
 
 		return output;
 	}
