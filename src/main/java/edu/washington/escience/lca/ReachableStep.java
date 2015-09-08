@@ -49,8 +49,8 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 		PCollection<KV<Integer, Integer>> graphOut = input.get(graphTag);
 
 		/* Join the oldDelta with the graph to get the new set of one-hop edges. */
-		TupleTag<Reachable> keyedDeltaTag = TupleTagUtil.makeTag();
-		TupleTag<Integer> keyedGraphTag = TupleTagUtil.makeTag();
+		TupleTag<Reachable> keyedDeltaTag = new TupleTag<Reachable>(){};
+		TupleTag<Integer> keyedGraphTag = new TupleTag<Integer>(){};
 		PCollection<KV<Integer, Reachable>> oneHop =
 				KeyedPCollectionTuple.of(keyedDeltaTag, oldDelta)
 				.and(keyedGraphTag, graphOut)
