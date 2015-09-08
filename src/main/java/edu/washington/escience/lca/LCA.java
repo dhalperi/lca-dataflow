@@ -15,11 +15,13 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.KvSwap;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -115,28 +117,30 @@ public class LCA {
 							}
 						}));
 
+
 		PCollection<KV<Integer, Reachable>> delta0 = reachable0;
 
-
-
-		PCollection<KV<Integer, Reachable>> reachable = reachable0;
+		/* The setup for every loop: */
 		PCollection<KV<Integer, Reachable>> delta = delta0;
+		PCollectionList<KV<Integer, Reachable>> allDeltas = PCollectionList.of(delta);
+		PCollection<KV<Integer, Reachable>> reachable = allDeltas.apply(Flatten.pCollections());
 
 		for (int i = 1; i < 30; ++i) {
 			TupleTag<KV<Integer, Reachable>> reachableInTag = new TupleTag<KV<Integer, Reachable>>(){};
-			TupleTag<KV<Integer, Reachable>> reachableOutTag = new TupleTag<KV<Integer, Reachable>>(){};
 			TupleTag<KV<Integer, Integer>> graphTag = new TupleTag<KV<Integer, Integer>>(){};
 			TupleTag<KV<Integer, Reachable>> deltaInTag = new TupleTag<KV<Integer, Reachable>>(){};
-			TupleTag<KV<Integer, Reachable>> deltaOutTag = new TupleTag<KV<Integer, Reachable>>(){};
-			ReachableStep step = new ReachableStep(reachableInTag, deltaInTag, graphTag, reachableOutTag, deltaOutTag,
+
+			ReachableStep step = new ReachableStep(reachableInTag, deltaInTag, graphTag,
 					i, options.getOutputDirectory(), false /* debug */);
 
-			PCollectionTuple oneHopResults = step.apply(PCollectionTuple.of(graphTag, graphIn)
+			PCollection<KV<Integer,Reachable>> oneHopResults = step.apply(
+					PCollectionTuple.of(graphTag, graphIn)
 					.and(reachableInTag, reachable)
 					.and(deltaInTag, delta));
 
-			reachable = oneHopResults.get(reachableOutTag);
-			delta = oneHopResults.get(deltaOutTag);
+			delta = oneHopResults;
+			allDeltas = allDeltas.and(delta);
+			reachable = allDeltas.apply(Flatten.pCollections());
 		}
 
 		reachable
