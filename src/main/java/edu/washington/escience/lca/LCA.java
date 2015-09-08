@@ -39,6 +39,11 @@ public class LCA {
 		String getSeedsFile();
 		void setSeedsFile(String file);
 
+		@Description("File containing a list of papers with years and titles")
+		@Required
+		String getPapersFile();
+		void setPapersFile(String file);
+
 		@Description("Directory to place output files.")
 		@Required
 		String getOutputDirectory();
