@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.Sets;
 
+@SuppressWarnings("serial")
 public class LCA {
 
 	interface Options extends PipelineOptions {

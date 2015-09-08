@@ -16,6 +16,7 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
+@SuppressWarnings("serial")
 public class LoadPapers extends PTransform<PInput, PCollection<KV<Integer, Integer>>> {
 	private static final Logger LOG = LoggerFactory.getLogger(LoadPapers.class);
 	private final String name;

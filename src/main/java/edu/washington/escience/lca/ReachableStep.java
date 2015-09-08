@@ -16,6 +16,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.common.collect.Sets;
 
+@SuppressWarnings("serial")
 public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 	private static final long serialVersionUID = 1L;
 	private final TupleTag<KV<Integer, Reachable>> reachableInTag;
