@@ -1,5 +1,8 @@
 package edu.washington.escience.lca;
 
+import java.util.Map;
+import java.util.TreeMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,6 +12,8 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -17,7 +22,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
 @SuppressWarnings("serial")
-public class LoadPapers extends PTransform<PInput, PCollection<KV<Integer, Integer>>> {
+public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Integer>>> {
 	private static final Logger LOG = LoggerFactory.getLogger(LoadPapers.class);
 	private final String name;
 	private final String path;
@@ -43,11 +48,34 @@ public class LoadPapers extends PTransform<PInput, PCollection<KV<Integer, Integ
 		}
 	}
 
+	public static class MapUnionFn extends CombineFn<KV<Integer, Integer>, Map<Integer, Integer>, Map<Integer, Integer>> {
+		@Override
+		public Map<Integer, Integer> createAccumulator() { return new TreeMap<>(); }
+		@Override
+		public Map<Integer, Integer> addInput(Map<Integer, Integer> accum, KV<Integer, Integer> input) {
+			accum.put(input.getKey(), input.getValue());
+			return accum;
+		}
+		@Override
+		public Map<Integer, Integer> mergeAccumulators(Iterable<Map<Integer, Integer>> accums) {
+			Map<Integer, Integer> merged = createAccumulator();
+			for (Map<Integer, Integer> accum : accums) {
+				merged.putAll(accum);
+			}
+			return merged;
+		}
+		@Override
+		public Map<Integer, Integer> extractOutput(Map<Integer, Integer> accum) {
+			return accum;
+		}
+	}
+
 	@Override
-	public PCollection<KV<Integer, Integer>> apply(PInput input) {
+	public PCollection<Map<Integer, Integer>> apply(PInput input) {
 		return input.getPipeline()
 				.apply(TextIO.Read.named("Read_" + name).from(path))
-				.apply(name, ParDo.of(new ExtractPaper()));
+				.apply(name, ParDo.of(new ExtractPaper()))
+				.apply("Unify_" + name, Combine.globally(new MapUnionFn()));
 	}
 
 	interface Options extends PipelineOptions {

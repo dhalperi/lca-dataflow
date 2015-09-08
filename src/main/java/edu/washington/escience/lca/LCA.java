@@ -1,7 +1,11 @@
 package edu.washington.escience.lca;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -23,6 +27,7 @@ import com.google.common.collect.Sets;
 
 @SuppressWarnings("serial")
 public class LCA {
+	private static final Logger LOG = LoggerFactory.getLogger(LCA.class);
 
 	interface Options extends PipelineOptions {
 		@Description("File containing a graph as a list of long-long pairs")
@@ -54,8 +59,28 @@ public class LCA {
 	public static void main(String[] args) {
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 		Pipeline p = Pipeline.create(options);
+		PCollectionView<Map<Integer, Integer>> papers = p
+				.apply(new LoadPapers("papers", options.getPapersFile()))
+				.apply(View.asSingleton());
 
-		PCollection<KV<Integer, Integer>> graphOut = p.apply(new LoadGraph("jstor", options.getGraphFile(), options.getGraphDestFirst()));
+		PCollection<KV<Integer, Integer>> graphOut = p
+				.apply(new LoadGraph("jstor", options.getGraphFile(), options.getGraphDestFirst()))
+				.apply("Filter_paper_years",
+						ParDo.withSideInputs(papers)
+						.of(new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>() {
+							@Override
+							public void processElement(ProcessContext c) {
+								Map<Integer, Integer> papersMap = c.sideInput(papers);
+								KV<Integer, Integer> cite = c.element();
+								Integer sourceYear = papersMap.get(cite.getKey());
+								Integer dstYear = papersMap.get(cite.getValue());
+								if (sourceYear == null || dstYear == null || sourceYear < dstYear) {
+									LOG.warn("Dropping link {}({}) -> {}({})", cite.getKey(), sourceYear, cite.getValue(), dstYear);
+									return;
+								}
+								c.output(cite);
+							}
+						}));
 		PCollection<KV<Integer, Integer>> graphIn = graphOut.apply(KvSwap.<Integer, Integer>create());
 		PCollection<Integer> seeds = p.apply(new LoadSeeds("seeds", options.getSeedsFile()));
 
@@ -92,18 +117,12 @@ public class LCA {
 
 		PCollection<KV<Integer, Reachable>> delta0 = reachable0;
 
-		//		reachable0
-		//		.apply("StringifyReachable_0", ParDo.of(new StringifyReachable()))
-		//		.apply("OutputReachable_0", TextIO.Write.to(options.getOutputDirectory() + "/reachable0").withSuffix(".txt"));
 
-		//		delta0
-		//		.apply("StringifyDelta_0", ParDo.of(new StringifyReachable()))
-		//		.apply("OutputDelta_0", TextIO.Write.to(options.getOutputDirectory() + "/delta0").withSuffix(".txt"));
 
 		PCollection<KV<Integer, Reachable>> reachable = reachable0;
 		PCollection<KV<Integer, Reachable>> delta = delta0;
 
-		for (int i = 1; i < 8; ++i) {
+		for (int i = 1; i < 30; ++i) {
 			TupleTag<KV<Integer, Reachable>> reachableInTag = new TupleTag<KV<Integer, Reachable>>(){};
 			TupleTag<KV<Integer, Reachable>> reachableOutTag = new TupleTag<KV<Integer, Reachable>>(){};
 			TupleTag<KV<Integer, Integer>> graphTag = new TupleTag<KV<Integer, Integer>>(){};
