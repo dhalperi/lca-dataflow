@@ -14,14 +14,17 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.common.collect.Sets;
 
 @SuppressWarnings("serial")
-public class ReachableStep extends PTransform<PCollectionTuple, PCollection<KV<Integer, Reachable>>> {
+public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 	private static final long serialVersionUID = 1L;
 	private final TupleTag<KV<Integer, Reachable>> reachableInTag;
 	private final TupleTag<KV<Integer, Reachable>> deltaInTag;
 	private final TupleTag<KV<Integer, Integer>> graphTag;
+	private final TupleTag<KV<Integer, Reachable>> reachableOutTag;
+	private final TupleTag<KV<Integer, Reachable>> deltaOutTag;
 	private final int step;
 	private final String outputDirectory;
 	private final boolean debug;
@@ -30,19 +33,23 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollection<KV<I
 			TupleTag<KV<Integer, Reachable>> reachableInTag,
 			TupleTag<KV<Integer, Reachable>> deltaInTag,
 			TupleTag<KV<Integer, Integer>> graphTag,
+			TupleTag<KV<Integer, Reachable>> reachableOutTag,
+			TupleTag<KV<Integer, Reachable>> deltaOutTag,
 			int step,
 			String outputDirectory,
 			boolean debug) {
 		this.reachableInTag = reachableInTag;
 		this.deltaInTag = deltaInTag;
 		this.graphTag = graphTag;
+		this.reachableOutTag = reachableOutTag;
+		this.deltaOutTag = deltaOutTag;
 		this.step = step;
 		this.outputDirectory = outputDirectory;
 		this.debug = debug;
 	}
 
 	@Override
-	public PCollection<KV<Integer, Reachable>> apply(PCollectionTuple input) {
+	public PCollectionTuple apply(PCollectionTuple input) {
 		PCollection<KV<Integer, Reachable>> oldDelta = input.get(deltaInTag);
 		PCollection<KV<Integer, Integer>> graphOut = input.get(graphTag);
 
@@ -78,10 +85,11 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollection<KV<I
 		TupleTag<Reachable> keyedJoinResultTag = new TupleTag<Reachable>(){};
 		PCollection<KV<Integer, Reachable>> oldReachable = input.get(reachableInTag);
 
-		PCollection<KV<Integer, Reachable>> output = KeyedPCollectionTuple.of(keyedReachableTag, oldReachable)
+		PCollectionTuple output = KeyedPCollectionTuple.of(keyedReachableTag, oldReachable)
 				.and(keyedJoinResultTag, oneHop)
 				.apply("CoGroupReachableAndDelta_"+step, CoGroupByKey.<Integer>create())
 				.apply("UpdateReachableAndDelta_"+step, ParDo
+						.withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag))
 						.of(new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>(){
 							private static final long serialVersionUID = 1L;
 
@@ -91,24 +99,30 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollection<KV<I
 								Integer source = result.getKey();
 								CoGbkResult join = result.getValue();
 								Set<Integer> alreadyKnown = Sets.newHashSet();
+								Set<Reachable> newReachable = Sets.newHashSet(join.getAll(keyedReachableTag));
 								Set<Reachable> newDelta = Sets.newHashSet();
 								// Record all the destinations this src can already.
-								for (Reachable r : join.getAll(keyedReachableTag)) {
+								for (Reachable r : newReachable) {
 									Verify.verify(alreadyKnown.add(r.dst), "Adding already known destination %s to src %s", r.dst, source);
 								}
 								for (Reachable r : join.getAll(keyedJoinResultTag)) {
 									if (alreadyKnown.add(r.dst)) {
+										newReachable.add(r);
 										newDelta.add(r);
 									}
 								}
+								// Emit all the new reachable set, which includes the new results.
+								for (Reachable r : newReachable) {
+									c.output(KV.of(source, r));
+								}
 								// Emit all the new delta set, which has been uniquified and deltaed.
 								for (Reachable d : newDelta) {
-									c.output(KV.of(source, d));
+									c.sideOutput(deltaOutTag, KV.of(source, d));
 								}
 							}}));
 
 		if (debug) {
-			output
+			output.get(deltaOutTag)
 			.apply("StringifyDelta_" + step, ParDo.of(new StringifyReachable()))
 			.apply("OutputDelta_" + step, TextIO.Write.to(outputDirectory + "/delta" + step).withSuffix(".txt"));
 		}
