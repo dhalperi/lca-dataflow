@@ -110,7 +110,7 @@ public class LCA {
 			TupleTag<KV<Integer, Reachable>> deltaInTag = new TupleTag<KV<Integer, Reachable>>(){};
 			TupleTag<KV<Integer, Reachable>> deltaOutTag = new TupleTag<KV<Integer, Reachable>>(){};
 			ReachableStep step = new ReachableStep(reachableInTag, deltaInTag, graphTag, reachableOutTag, deltaOutTag,
-					i, options.getOutputDirectory());
+					i, options.getOutputDirectory(), false /* debug */);
 
 			PCollectionTuple oneHopResults = step.apply(PCollectionTuple.of(graphTag, graphIn)
 					.and(reachableInTag, reachable)

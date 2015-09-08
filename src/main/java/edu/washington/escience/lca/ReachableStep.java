@@ -2,6 +2,7 @@ package edu.washington.escience.lca;
 
 import java.util.Set;
 
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Verify;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -26,6 +27,7 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 	private final TupleTag<KV<Integer, Reachable>> deltaOutTag;
 	private final int step;
 	private final String outputDirectory;
+	private final boolean debug;
 
 	public ReachableStep(
 			TupleTag<KV<Integer, Reachable>> reachableInTag,
@@ -34,7 +36,8 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 			TupleTag<KV<Integer, Reachable>> reachableOutTag,
 			TupleTag<KV<Integer, Reachable>> deltaOutTag,
 			int step,
-			String outputDirectory) {
+			String outputDirectory,
+			boolean debug) {
 		this.reachableInTag = reachableInTag;
 		this.deltaInTag = deltaInTag;
 		this.graphTag = graphTag;
@@ -42,6 +45,7 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 		this.deltaOutTag = deltaOutTag;
 		this.step = step;
 		this.outputDirectory = outputDirectory;
+		this.debug = debug;
 	}
 
 	@Override
@@ -117,13 +121,11 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 								}
 							}}));
 
-		//		output.get(reachableOutTag)
-		//		.apply("StringifyReachable_"+step, ParDo.of(new StringifyReachable()))
-		//		.apply("OutputReachable_"+step, TextIO.Write.to(outputDirectory + "/reachable" + step).withSuffix(".txt"));
-		//
-		//		output.get(deltaOutTag)
-		//		.apply("StringifyDelta_"+step, ParDo.of(new StringifyReachable()))
-		//		.apply("OutputDelta_"+step, TextIO.Write.to(outputDirectory + "/delta" + step).withSuffix(".txt"));
+		if (debug) {
+			output.get(deltaOutTag)
+			.apply("StringifyDelta_" + step, ParDo.of(new StringifyReachable()))
+			.apply("OutputDelta_" + step, TextIO.Write.to(outputDirectory + "/delta" + step).withSuffix(".txt"));
+		}
 
 		return output;
 	}
