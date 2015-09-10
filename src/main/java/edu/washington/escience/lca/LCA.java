@@ -1,6 +1,5 @@
 package edu.washington.escience.lca;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -8,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.SetCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.collect.Sets;
 
 @SuppressWarnings("serial")
 public class LCA {
@@ -62,6 +61,7 @@ public class LCA {
 		PCollectionView<Map<Integer, Integer>> papers = p
 				.apply(new LoadPapers("papers", options.getPapersFile()))
 				.apply(View.asSingleton());
+		p.getCoderRegistry().registerCoder(Set.class, SetCoder.class);
 
 		PCollection<KV<Integer, Integer>> graphOut = p
 				.apply(new LoadGraph("jstor", options.getGraphFile(), options.getGraphDestFirst()))
@@ -82,21 +82,17 @@ public class LCA {
 							}
 						}));
 		PCollection<KV<Integer, Integer>> graphIn = graphOut.apply(KvSwap.<Integer, Integer>create());
-		PCollection<Integer> seeds = p.apply(new LoadSeeds("seeds", options.getSeedsFile()));
+		PCollection<Set<Integer>> seeds = p.apply(new LoadSeeds("seeds", options.getSeedsFile()));
 
-		PCollectionView<List<Integer>> seedsView = seeds.apply(View.asList());
+		PCollectionView<Set<Integer>> seedsView = seeds.apply(View.asSingleton());
 
 		PCollection<KV<Integer, Reachable>> reachable0 = graphOut
 				.apply("FilterSeeds", ParDo.withSideInputs(seedsView).of(
 						new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>(){
-							Set<Integer> seeds;
 							@Override
 							public void processElement(ProcessContext c) throws Exception {
-								if (seeds == null) {
-									seeds = Sets.newHashSet(c.sideInput(seedsView));
-								}
 								KV<Integer, Integer> link = c.element();
-								if (seeds.contains(link.getKey())) {
+								if (c.sideInput(seedsView).contains(link.getKey())) {
 									// The source of the link is a seed vertex
 									c.output(link);
 								}
