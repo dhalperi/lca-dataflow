@@ -1,7 +1,7 @@
 package edu.washington.escience.lca;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +50,7 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
 
 	public static class MapUnionFn extends CombineFn<KV<Integer, Integer>, Map<Integer, Integer>, Map<Integer, Integer>> {
 		@Override
-		public Map<Integer, Integer> createAccumulator() { return new TreeMap<>(); }
+		public Map<Integer, Integer> createAccumulator() { return new HashMap<>(); }
 		@Override
 		public Map<Integer, Integer> addInput(Map<Integer, Integer> accum, KV<Integer, Integer> input) {
 			accum.put(input.getKey(), input.getValue());
