@@ -12,10 +12,8 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
+@SuppressWarnings("serial")
 public class LoadSeeds extends PTransform<PInput, PCollection<Set<Integer>>> {
-
-	/***/
-	private static final long serialVersionUID = 1L;
 	private final String name;
 	private final String path;
 
@@ -25,9 +23,6 @@ public class LoadSeeds extends PTransform<PInput, PCollection<Set<Integer>>> {
 	}
 
 	public static class ExtractSeedDoFn extends DoFn<String, Integer> {
-		/***/
-		private static final long serialVersionUID = 1L;
-
 		@Override
 		public void processElement(ProcessContext c) throws Exception {
 			try {

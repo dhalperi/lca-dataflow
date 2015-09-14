@@ -29,6 +29,11 @@ public class LCA {
 	private static final Logger LOG = LoggerFactory.getLogger(LCA.class);
 
 	interface Options extends PipelineOptions {
+		@Description("The number of iterations in the reachability computation")
+		@Default.Integer(3)
+		int getNumIterations();
+		void setNumIterations(int numIterations);
+
 		@Description("File containing a graph as a list of long-long pairs")
 		@Required
 		String getGraphFile();
@@ -101,11 +106,8 @@ public class LCA {
 						))
 				.apply("Reachable_0", ParDo.of(
 						new DoFn<KV<Integer, Integer>, KV<Integer, Reachable>>() {
-							private static final long serialVersionUID = 1L;
-
 							@Override
-							public void processElement(ProcessContext c)
-									throws Exception {
+							public void processElement(ProcessContext c) throws Exception {
 								KV<Integer, Integer> link = c.element();
 								c.output(KV.of(link.getKey(), Reachable.of(link.getValue(), 1)));
 							}
@@ -118,7 +120,7 @@ public class LCA {
 		PCollection<KV<Integer, Reachable>> reachable = reachable0;
 		PCollection<KV<Integer, Reachable>> delta = delta0;
 
-		for (int i = 1; i < 30; ++i) {
+		for (int i = 1; i < options.getNumIterations(); ++i) {
 			TupleTag<KV<Integer, Reachable>> reachableInTag = new TupleTag<KV<Integer, Reachable>>(){};
 			TupleTag<KV<Integer, Reachable>> reachableOutTag = new TupleTag<KV<Integer, Reachable>>(){};
 			TupleTag<KV<Integer, Integer>> graphTag = new TupleTag<KV<Integer, Integer>>(){};
@@ -138,6 +140,11 @@ public class LCA {
 		reachable
 		.apply("StringifyReachable", ParDo.of(new StringifyReachable()))
 		.apply("OutputReachable", TextIO.Write.to(options.getOutputDirectory() + "/reachable").withSuffix(".txt"));
+
+		reachable
+		.apply(new CommonAncestors(papers))
+		.apply("StringifyLCAs", ParDo.of(new StringifyLCAs()))
+		.apply("OutputLCAs", TextIO.Write.to(options.getOutputDirectory() + "/lcas").withSuffix(".txt"));
 
 		p.run();
 	}
