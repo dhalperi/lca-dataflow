@@ -15,7 +15,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.KvSwap;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -62,12 +61,15 @@ public class LCA {
 
 	public static void main(String[] args) {
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+		options.setOutputDirectory(options.getOutputDirectory() + "/lcas_" + options.getNumIterations());
+
 		Pipeline p = Pipeline.create(options);
 		PCollectionView<Map<Integer, Integer>> papers = p
 				.apply(new LoadPapers("papers", options.getPapersFile()))
 				.apply(View.asSingleton());
 		p.getCoderRegistry().registerCoder(Set.class, SetCoder.class);
 
+		// graphOut is edges where src cites destination
 		PCollection<KV<Integer, Integer>> graphOut = p
 				.apply(new LoadGraph("jstor", options.getGraphFile(), options.getGraphDestFirst()))
 				.apply("Filter_paper_years",
@@ -86,7 +88,7 @@ public class LCA {
 								c.output(cite);
 							}
 						}));
-		PCollection<KV<Integer, Integer>> graphIn = graphOut.apply(KvSwap.<Integer, Integer>create());
+
 		PCollection<Set<Integer>> seeds = p.apply(new LoadSeeds("seeds", options.getSeedsFile()));
 
 		PCollectionView<Set<Integer>> seedsView = seeds.apply(View.asSingleton());
@@ -102,14 +104,13 @@ public class LCA {
 									c.output(link);
 								}
 							}
-						}
-						))
+						}))
 				.apply("Reachable_0", ParDo.of(
 						new DoFn<KV<Integer, Integer>, KV<Integer, Reachable>>() {
 							@Override
 							public void processElement(ProcessContext c) throws Exception {
 								KV<Integer, Integer> link = c.element();
-								c.output(KV.of(link.getKey(), Reachable.of(link.getValue(), 1)));
+								c.output(KV.of(link.getValue(), Reachable.of(link.getKey(), 1)));
 							}
 						}));
 
@@ -129,13 +130,17 @@ public class LCA {
 			ReachableStep step = new ReachableStep(reachableInTag, deltaInTag, graphTag, reachableOutTag, deltaOutTag,
 					i, options.getOutputDirectory(), false /* debug */);
 
-			PCollectionTuple oneHopResults = step.apply(PCollectionTuple.of(graphTag, graphIn)
-					.and(reachableInTag, reachable)
-					.and(deltaInTag, delta));
+			PCollectionTuple oneHopResults = PCollectionTuple
+					.of(graphTag, graphOut).and(reachableInTag, reachable).and(deltaInTag, delta)
+					.apply("Reachable_"+i, step);
 
 			reachable = oneHopResults.get(reachableOutTag);
 			delta = oneHopResults.get(deltaOutTag);
 		}
+
+		reachable0
+		.apply("StringifyReachable0", ParDo.of(new StringifyReachable()))
+		.apply("OutputReachable0", TextIO.Write.to(options.getOutputDirectory() + "/reachable0").withSuffix(".txt"));
 
 		reachable
 		.apply("StringifyReachable", ParDo.of(new StringifyReachable()))

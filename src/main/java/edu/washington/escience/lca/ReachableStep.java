@@ -61,8 +61,6 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
 				.and(keyedGraphTag, graphOut)
 				.apply("JoinGraphWithDelta_"+step, CoGroupByKey.<Integer>create())
 				.apply("ComputeOneHop_"+step, ParDo.of(new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>(){
-					private static final long serialVersionUID = 1L;
-
 					@Override
 					public void processElement(ProcessContext c) throws Exception {
 						KV<Integer, CoGbkResult> result = c.element();

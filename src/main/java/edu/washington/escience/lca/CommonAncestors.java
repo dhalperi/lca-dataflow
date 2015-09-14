@@ -52,11 +52,7 @@ public class CommonAncestors extends PTransform<PCollection<KV<Integer, Reachabl
 
 	@Override
 	public PCollection<KV<PaperPair, Ancestor>> apply(PCollection<KV<Integer, Reachable>> input) {
-		// First, swap destination and source so ancestor is the key.
-		PCollection<KV<Integer, Reachable>> ancestors = input
-				.apply("SwapReachable", ParDo.of(new SwapReachable()));
-
-		return ancestors
+		return input
 				.apply("GroupByAncestor", GroupByKey.create())
 				.apply("GeneratePairs", ParDo.withSideInputs(papers).of(new GenerateAncestors(papers)))
 				.apply("LeastCommonAncestor", Combine.perKey(new AncestorCombineFn()));

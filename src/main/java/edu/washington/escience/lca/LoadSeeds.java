@@ -3,6 +3,9 @@ package edu.washington.escience.lca;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
@@ -14,6 +17,7 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 
 @SuppressWarnings("serial")
 public class LoadSeeds extends PTransform<PInput, PCollection<Set<Integer>>> {
+	private static final Logger LOG = LoggerFactory.getLogger(LoadSeeds.class);
 	private final String name;
 	private final String path;
 
@@ -28,6 +32,7 @@ public class LoadSeeds extends PTransform<PInput, PCollection<Set<Integer>>> {
 			try {
 				c.output(Integer.parseInt(c.element()));
 			} catch (NumberFormatException e) {
+				LOG.warn("Error extracting seed {}", c.element());
 				return;
 			}
 		}
