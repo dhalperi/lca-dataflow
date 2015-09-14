@@ -8,10 +8,8 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
+@SuppressWarnings("serial")
 public class LoadGraph extends PTransform<PInput, PCollection<KV<Integer, Integer>>> {
-
-	/***/
-	private static final long serialVersionUID = 1L;
 	private final String name;
 	private final String path;
 	private final boolean destFirst;
@@ -23,14 +21,11 @@ public class LoadGraph extends PTransform<PInput, PCollection<KV<Integer, Intege
 	}
 
 	public static class ExtractLinkDoFn extends DoFn<String, KV<Integer, Integer>> {
-		/***/
-		private static final long serialVersionUID = 1L;
 		private final boolean destFirst;
 
 		public ExtractLinkDoFn(boolean destFirst) {
 			this.destFirst = destFirst;
 		}
-
 
 		@Override
 		public void processElement(ProcessContext c) throws Exception {
