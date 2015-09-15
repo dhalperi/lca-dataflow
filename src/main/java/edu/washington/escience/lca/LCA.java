@@ -23,6 +23,9 @@ import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
+/**
+ * Runs the Least Common Ancestors algorithm for the specified citations dataset.
+ */
 @SuppressWarnings("serial")
 public class LCA {
 	private static final Logger LOG = LoggerFactory.getLogger(LCA.class);
