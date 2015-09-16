@@ -14,6 +14,7 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
+import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Verify;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
@@ -69,7 +70,7 @@ public class LCA {
 		Pipeline p = Pipeline.create(options);
 		PCollectionView<Map<Integer, Integer>> papers = p
 				.apply(new LoadPapers("papers", options.getPapersFile()))
-				.apply(View.asSingleton());
+				.apply("papers", View.asSingleton());
 		p.getCoderRegistry().registerCoder(Set.class, SetCoder.class);
 
 		// graphOut is edges where src cites destination
@@ -92,9 +93,9 @@ public class LCA {
 							}
 						}));
 
-		PCollection<Set<Integer>> seeds = p.apply(new LoadSeeds("seeds", options.getSeedsFile()));
-
-		PCollectionView<Set<Integer>> seedsView = seeds.apply(View.asSingleton());
+		PCollectionView<Set<Integer>> seedsView = p
+				.apply(new LoadSeeds("seeds", options.getSeedsFile()))
+				.apply("seeds", View.asSingleton());
 
 		PCollection<KV<Integer, Reachable>> reachable0 = graphOut
 				.apply("FilterSeeds", ParDo.withSideInputs(seedsView).of(
@@ -102,7 +103,9 @@ public class LCA {
 							@Override
 							public void processElement(ProcessContext c) throws Exception {
 								KV<Integer, Integer> link = c.element();
-								if (c.sideInput(seedsView).contains(link.getKey())) {
+								Set<Integer> seeds = c.sideInput(seedsView);
+								Verify.verify(seeds.size() == 4620, "Seeds.size is " + seeds.size());
+								if (seeds.contains(link.getKey())) {
 									// The source of the link is a seed vertex
 									c.output(link);
 								}
