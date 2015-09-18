@@ -36,7 +36,7 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
 		@Override
 		public void processElement(ProcessContext c) throws Exception {
 			String line = c.element();
-			String[] split = line.split("\\s", 5);
+			String[] split = line.split("\\s+", 5);
 			if (split.length != 5) {
 				LOG.warn("Skipping line {}", line);
 			}

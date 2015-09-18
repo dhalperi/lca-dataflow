@@ -14,7 +14,6 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
-import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Verify;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
@@ -104,7 +103,6 @@ public class LCA {
 							public void processElement(ProcessContext c) throws Exception {
 								KV<Integer, Integer> link = c.element();
 								Set<Integer> seeds = c.sideInput(seedsView);
-								Verify.verify(seeds.size() == 4620, "Seeds.size is " + seeds.size());
 								if (seeds.contains(link.getKey())) {
 									// The source of the link is a seed vertex
 									c.output(link);
