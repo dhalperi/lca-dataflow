@@ -36,14 +36,14 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
 		@Override
 		public void processElement(ProcessContext c) throws Exception {
 			String line = c.element();
-			String[] split = line.split("\\s+", 5);
-			if (split.length != 5) {
-				LOG.warn("Skipping line {}", line);
+			String[] split = line.split(",", 2);
+			if (split.length != 2) {
+				LOG.warn("LoadPapers: Skipping line {}", line);
 			}
 			try {
 				c.output(KV.of(Integer.parseInt(split[0]), Integer.parseInt(split[1])));
 			} catch (NumberFormatException e) {
-				LOG.warn("Skipping line {}", line);
+				LOG.warn("LoadPapers: Skipping line {}", line);
 			}
 		}
 	}
