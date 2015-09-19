@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.SetCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
@@ -70,7 +69,6 @@ public class LCA {
 		PCollectionView<Map<Integer, Integer>> papers = p
 				.apply(new LoadPapers("papers", options.getPapersFile()))
 				.apply("papers", View.asSingleton());
-		p.getCoderRegistry().registerCoder(Set.class, SetCoder.class);
 
 		// graphOut is edges where src cites destination
 		PCollection<KV<Integer, Integer>> graphOut = p
