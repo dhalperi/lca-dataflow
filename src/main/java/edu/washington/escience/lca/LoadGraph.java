@@ -29,7 +29,7 @@ public class LoadGraph extends PTransform<PInput, PCollection<KV<Integer, Intege
 
 		@Override
 		public void processElement(ProcessContext c) throws Exception {
-			String[] fields = c.element().split("\\s+", 2);
+			String[] fields = c.element().split(",", 2);
 			if (fields.length != 2 || fields[0] == null || fields[1] == null) {
 				return;
 			}
