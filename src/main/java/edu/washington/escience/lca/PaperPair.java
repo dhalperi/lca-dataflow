@@ -1,7 +1,10 @@
 package edu.washington.escience.lca;
 
+import java.util.Objects;
+
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
+import com.google.common.base.MoreObjects;
 
 @DefaultCoder(AvroCoder.class)
 public class PaperPair {
@@ -17,5 +20,24 @@ public class PaperPair {
 	private PaperPair(int p1, int p2) {
 		this.p1 = p1;
 		this.p2 = p2;
+	}
+	@Override
+	public boolean equals(Object o) {
+		if (!(o instanceof PaperPair)) {
+			return false;
+		}
+		PaperPair other = (PaperPair) o;
+		return Objects.equals(p1, other.p1) && Objects.equals(p2, other.p2);
+	}
+	@Override
+	public int hashCode() {
+		return Objects.hash(p1, p2);
+	}
+	@Override
+	public String toString() {
+		return MoreObjects.toStringHelper(PaperPair.class)
+				.add("p1", p1)
+				.add("p2", p2)
+				.toString();
 	}
 }
