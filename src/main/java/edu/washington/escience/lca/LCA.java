@@ -13,6 +13,7 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
+import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
@@ -59,6 +60,11 @@ public class LCA {
 		@Required
 		String getOutputDirectory();
 		void setOutputDirectory(String outputDir);
+
+		@Description("True if the job should be run in debug mode.")
+		@Default.Boolean(false)
+		Boolean getDebug();
+		void setDebug(Boolean debug);
 	}
 
 	public static void main(String[] args) {
@@ -119,37 +125,46 @@ public class LCA {
 		PCollection<KV<Integer, Reachable>> delta0 = reachable0;
 
 
-
+		// Begin the iteration process
 		PCollection<KV<Integer, Reachable>> reachable = reachable0;
 		PCollection<KV<Integer, Reachable>> delta = delta0;
+		PCollection<KV<PaperPair, Ancestor>> ancestors = p.apply("Ancestors_0", Create.of());
 
 		for (int i = 1; i < options.getNumIterations(); ++i) {
+			TupleTag<KV<Integer, Integer>> graphTag = new TupleTag<KV<Integer, Integer>>(){};
 			TupleTag<KV<Integer, Reachable>> reachableInTag = new TupleTag<KV<Integer, Reachable>>(){};
 			TupleTag<KV<Integer, Reachable>> reachableOutTag = new TupleTag<KV<Integer, Reachable>>(){};
-			TupleTag<KV<Integer, Integer>> graphTag = new TupleTag<KV<Integer, Integer>>(){};
 			TupleTag<KV<Integer, Reachable>> deltaInTag = new TupleTag<KV<Integer, Reachable>>(){};
 			TupleTag<KV<Integer, Reachable>> deltaOutTag = new TupleTag<KV<Integer, Reachable>>(){};
-			ReachableStep step = new ReachableStep(reachableInTag, deltaInTag, graphTag, reachableOutTag, deltaOutTag,
-					i, options.getOutputDirectory(), false /* debug */);
+			TupleTag<KV<PaperPair, Ancestor>> ancestorsInTag = new TupleTag<KV<PaperPair, Ancestor>>(){};
+			TupleTag<KV<PaperPair, Ancestor>> ancestorsOutTag = new TupleTag<KV<PaperPair, Ancestor>>(){};
+			LCAStep step = new LCAStep(reachableInTag, deltaInTag, ancestorsInTag, graphTag,
+					reachableOutTag, deltaOutTag, ancestorsOutTag, papers,
+					i, options.getOutputDirectory(), options.getDebug());
 
 			PCollectionTuple oneHopResults = PCollectionTuple
-					.of(graphTag, graphOut).and(reachableInTag, reachable).and(deltaInTag, delta)
-					.apply("Reachable_"+i, step);
+					.of(graphTag, graphOut)
+					.and(reachableInTag, reachable)
+					.and(deltaInTag, delta)
+					.and(ancestorsInTag, ancestors)
+					.apply("LCA_"+i, step);
 
 			reachable = oneHopResults.get(reachableOutTag);
 			delta = oneHopResults.get(deltaOutTag);
+			ancestors = oneHopResults.get(ancestorsOutTag);
 		}
 
-		reachable0
-		.apply("StringifyReachable0", ParDo.of(new StringifyReachable()))
-		.apply("OutputReachable0", TextIO.Write.to(options.getOutputDirectory() + "/reachable0").withSuffix(".txt"));
+		if (options.getDebug()) {
+			reachable0
+			.apply("StringifyReachable0", ParDo.of(new StringifyReachable()))
+			.apply("OutputReachable0", TextIO.Write.to(options.getOutputDirectory() + "/reachable0").withSuffix(".txt"));
 
-		reachable
-		.apply("StringifyReachable", ParDo.of(new StringifyReachable()))
-		.apply("OutputReachable", TextIO.Write.to(options.getOutputDirectory() + "/reachable").withSuffix(".txt"));
+			reachable
+			.apply("StringifyReachable", ParDo.of(new StringifyReachable()))
+			.apply("OutputReachable", TextIO.Write.to(options.getOutputDirectory() + "/reachable").withSuffix(".txt"));
+		}
 
-		reachable
-		.apply(new CommonAncestors(papers))
+		ancestors
 		.apply("StringifyLCAs", ParDo.of(new StringifyLCAs()))
 		.apply("OutputLCAs", TextIO.Write.to(options.getOutputDirectory() + "/lcas").withSuffix(".txt"));
 
