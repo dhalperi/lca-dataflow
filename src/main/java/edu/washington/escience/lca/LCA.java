@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.AvroCoder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
@@ -128,7 +130,8 @@ public class LCA {
 		// Begin the iteration process
 		PCollection<KV<Integer, Reachable>> reachable = reachable0;
 		PCollection<KV<Integer, Reachable>> delta = delta0;
-		PCollection<KV<PaperPair, Ancestor>> ancestors = p.apply("Ancestors_0", Create.of());
+		PCollection<KV<PaperPair, Ancestor>> ancestors = p
+				.apply("Ancestors_0", Create.<KV<PaperPair, Ancestor>>of().withCoder(KvCoder.of(AvroCoder.of(PaperPair.class), AvroCoder.of(Ancestor.class))));
 
 		for (int i = 1; i < options.getNumIterations(); ++i) {
 			TupleTag<KV<Integer, Integer>> graphTag = new TupleTag<KV<Integer, Integer>>(){};
