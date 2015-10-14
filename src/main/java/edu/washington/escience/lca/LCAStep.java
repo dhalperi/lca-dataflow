@@ -85,8 +85,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 		PCollection<KV<PaperPair, Ancestor>> newAncestors =
 				KeyedPCollectionTuple.of(keyedDeltaTag, oldDelta)
 				.and(keyedReachableTag, oldReachable)
-				.apply("JoinDeltaWithReachable_"+step, CoGroupByKey.<Integer>create())
-				.apply("ComputeNewAncestors_"+step, ParDo
+				.apply("JoinDeltaWithReachable", CoGroupByKey.<Integer>create())
+				.apply("ComputeNewAncestors", ParDo
 						.withSideInputs(knownAncestors, paperYears)
 						.of(new DoFn<KV<Integer, CoGbkResult>, KV<PaperPair, Ancestor>>(){
 							@Override
@@ -119,7 +119,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 				.apply("NewLeastCommonAncestors", Min.perKey());
 		PCollection<KV<PaperPair, Ancestor>> newLCAs =
 				PCollectionList.of(oldAncestors).and(newAncestors)
-				.apply("LeastCommonAncestors_"+step, Flatten.<KV<PaperPair, Ancestor>>pCollections());
+				.apply("CombinedCommonAncestors", Flatten.<KV<PaperPair, Ancestor>>pCollections());
 
 		PCollection<KV<Integer, Integer>> graphOut = input.get(graphTag);
 		/* Join the oldDelta with the graph to get the new set of one-hop edges. */
@@ -127,8 +127,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 		PCollection<KV<Integer, Reachable>> oneHop =
 				KeyedPCollectionTuple.of(keyedDeltaTag, oldDelta)
 				.and(keyedGraphTag, graphOut)
-				.apply("JoinGraphWithDelta_"+step, CoGroupByKey.<Integer>create())
-				.apply("ComputeOneHop_"+step, ParDo.of(new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>(){
+				.apply("JoinGraphWithDelta", CoGroupByKey.<Integer>create())
+				.apply("ComputeOneHop", ParDo.of(new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>(){
 					@Override
 					public void processElement(ProcessContext c) throws Exception {
 						KV<Integer, CoGbkResult> result = c.element();
@@ -152,8 +152,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 		PCollectionTuple newDeltaAndReachable =
 				KeyedPCollectionTuple.of(keyedReachableTag, oldReachable)
 				.and(keyedJoinResultTag, oneHop)
-				.apply("CoGroupReachableAndDelta_"+step, CoGroupByKey.<Integer>create())
-				.apply("UpdateReachableAndDelta_"+step, ParDo
+				.apply("CoGroupReachableAndDelta", CoGroupByKey.<Integer>create())
+				.apply("UpdateReachableAndDelta", ParDo
 						.withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag))
 						.of(new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>(){
 							private static final long serialVersionUID = 1L;
@@ -188,8 +188,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 
 		if (debug) {
 			newDeltaAndReachable.get(deltaOutTag)
-			.apply("StringifyDelta_" + step, ParDo.of(new StringifyReachable()))
-			.apply("OutputDelta_" + step, TextIO.Write.to(outputDirectory + "/delta" + step).withSuffix(".txt"));
+			.apply("StringifyDelta", ParDo.of(new StringifyReachable()))
+			.apply("OutputDelta", TextIO.Write.to(outputDirectory + "/delta" + step).withSuffix(".txt"));
 		}
 
 		return newDeltaAndReachable.and(ancestorsOutTag, newLCAs);
