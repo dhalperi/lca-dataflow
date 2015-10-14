@@ -119,7 +119,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 				.apply("NewLeastCommonAncestors", Min.perKey());
 		PCollection<KV<PaperPair, Ancestor>> newLCAs =
 				PCollectionList.of(oldAncestors).and(newAncestors)
-				.apply("CombinedCommonAncestors", Flatten.<KV<PaperPair, Ancestor>>pCollections());
+				.apply("CombinedCommonAncestors", Flatten.<KV<PaperPair, Ancestor>>pCollections())
+				.apply("LeastCommonAncestors", new Reshuffle<>());
 
 		PCollection<KV<Integer, Integer>> graphOut = input.get(graphTag);
 		/* Join the oldDelta with the graph to get the new set of one-hop edges. */
