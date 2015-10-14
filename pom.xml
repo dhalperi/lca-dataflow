@@ -14,5 +14,10 @@
   		<artifactId>guava</artifactId>
   		<version>LATEST</version>
   	</dependency>
+  	<dependency>
+  		<groupId>org.slf4j</groupId>
+  		<artifactId>slf4j-jdk14</artifactId>
+  		<version>LATEST</version>
+  	</dependency>
   </dependencies>
 </project>
