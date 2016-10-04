@@ -1,8 +1,10 @@
 package edu.washington.escience.lca;
 
+import static com.google.common.base.Verify.verify;
+
 import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Verify;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
@@ -10,6 +12,7 @@ import com.google.cloud.dataflow.sdk.transforms.Keys;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResult;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
@@ -90,6 +93,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
         .apply("ComputeNewAncestors", ParDo
             .withSideInputs(knownAncestors, paperYears)
             .of(new DoFn<KV<Integer, CoGbkResult>, KV<PaperPair, Ancestor>>(){
+              private Aggregator<Integer, Integer> emptyDeltas =
+                  createAggregator("empty deltas", new Sum.SumIntegerFn());
               @Override
               public void processElement(ProcessContext c) throws Exception {
                 // Key is the ancestor -- both delta and reachable vertices can reach it.
@@ -99,6 +104,10 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                 Set<PaperPair> alreadyFound = c.sideInput(knownAncestors);
                 Map<Integer, Integer> ancestorYears = c.sideInput(paperYears);
                 List<Reachable> delta = Lists.newArrayList(join.getAll(keyedDeltaTag));
+                if (delta.isEmpty()) {
+                  emptyDeltas.addValue(1);
+                  return;
+                }
                 for (Reachable r2 : join.getAll(keyedReachableTag)) {
                   for (Reachable r1 : delta) {
                     if (r1.dst == r2.dst) {
@@ -121,12 +130,11 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
         .apply("NewLeastCommonAncestors", Min.perKey());
     PCollection<KV<PaperPair, Ancestor>> newLCAs =
         PCollectionList.of(oldAncestors).and(newAncestors)
-        .apply("CombinedCommonAncestors", Flatten.<KV<PaperPair, Ancestor>>pCollections());
+        .apply("CombinedCommonAncestors", Flatten.pCollections());
 
-    /* Every few steps, insert an extra reshuffle to break too much flatten unzipping. */
-    if (true || step % 5 == 1) {
-      newLCAs = newLCAs
-          .apply("LeastCommonAncestors", new Reshuffle<>());
+    /* Insert an extra reshuffle to break too much flatten unzipping. */
+    if (step % 4 == 2) {
+      newLCAs = newLCAs.apply("LeastCommonAncestors", new Reshuffle<>());
     }
 
     PCollection<KV<Integer, Integer>> graphOut = input.get(graphTag);
@@ -135,7 +143,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
     PCollection<KV<Integer, Reachable>> oneHop =
         KeyedPCollectionTuple.of(keyedDeltaTag, oldDelta)
         .and(keyedGraphTag, graphOut)
-        .apply("JoinGraphWithDelta", CoGroupByKey.<Integer>create())
+        .apply("JoinGraphWithDelta", CoGroupByKey.create())
         .apply("ComputeOneHop", ParDo.of(new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>(){
           @Override
           public void processElement(ProcessContext c) throws Exception {
@@ -160,12 +168,14 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
     PCollectionTuple newDeltaAndReachable =
         KeyedPCollectionTuple.of(keyedReachableTag, oldReachable)
         .and(keyedJoinResultTag, oneHop)
-        .apply("CoGroupReachableAndDelta", CoGroupByKey.<Integer>create())
+        .apply("CoGroupReachableAndDelta", CoGroupByKey.create())
         .apply("UpdateReachableAndDelta", ParDo
             .withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag))
             .of(new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>(){
               private static final long serialVersionUID = 1L;
 
+              private Aggregator<Integer, Integer> emptyKnown =
+                  createAggregator("empty known", new Sum.SumIntegerFn());
               @Override
               public void processElement(ProcessContext c) throws Exception {
                 KV<Integer, CoGbkResult> result = c.element();
@@ -176,7 +186,12 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                 Set<Reachable> newDelta = Sets.newHashSet();
                 // Record all the destinations this src can already.
                 for (Reachable r : newReachable) {
-                  Verify.verify(alreadyKnown.add(r.dst), "Adding already known destination %s to src %s", r.dst, source);
+                  verify(alreadyKnown.add(r.dst),
+                      "Adding already known destination %s to src %s", r.dst, source);
+                }
+                if (alreadyKnown.isEmpty()) {
+                  emptyKnown.addValue(1);
+                  return;
                 }
                 for (Reachable r : join.getAll(keyedJoinResultTag)) {
                   if (alreadyKnown.add(r.dst)) {
