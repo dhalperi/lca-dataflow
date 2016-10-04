@@ -7,13 +7,13 @@ import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 
 @DefaultCoder(AvroCoder.class)
 public class Paper {
-	Integer paper;
-	@Nullable String title;
-	Integer year;
+  Integer paper;
+  @Nullable String title;
+  Integer year;
 
-	public Paper() {
-		paper = -1;
-		year = -1;
-		title = null;
-	}
+  public Paper() {
+    paper = -1;
+    year = -1;
+    title = null;
+  }
 }
