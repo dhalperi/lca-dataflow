@@ -90,7 +90,6 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
         .apply("ComputeNewAncestors", ParDo
             .withSideInputs(knownAncestors, paperYears)
             .of(new DoFn<KV<Integer, CoGbkResult>, KV<PaperPair, Ancestor>>(){
-              private List<Reachable> delta = null;
               @Override
               public void processElement(ProcessContext c) throws Exception {
                 // Key is the ancestor -- both delta and reachable vertices can reach it.
@@ -99,9 +98,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                 CoGbkResult join = result.getValue();
                 Set<PaperPair> alreadyFound = c.sideInput(knownAncestors);
                 Map<Integer, Integer> ancestorYears = c.sideInput(paperYears);
-                if (delta == null) {
-                  delta = Lists.newArrayList(join.getAll(keyedDeltaTag));
-                }
+                List<Reachable> delta = Lists.newArrayList(join.getAll(keyedDeltaTag));
                 for (Reachable r2 : join.getAll(keyedReachableTag)) {
                   for (Reachable r1 : delta) {
                     if (r1.dst == r2.dst) {
@@ -127,7 +124,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
         .apply("CombinedCommonAncestors", Flatten.<KV<PaperPair, Ancestor>>pCollections());
 
     /* Every few steps, insert an extra reshuffle to break too much flatten unzipping. */
-    if (step % 5 == 1) {
+    if (true || step % 5 == 1) {
       newLCAs = newLCAs
           .apply("LeastCommonAncestors", new Reshuffle<>());
     }
