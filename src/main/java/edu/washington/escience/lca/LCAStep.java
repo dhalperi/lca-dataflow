@@ -1,9 +1,6 @@
 package edu.washington.escience.lca;
 
-import java.util.Map;
-import java.util.Set;
-
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
+import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Verify;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -25,6 +22,10 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.common.collect.Sets;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @SuppressWarnings("serial")
 public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
@@ -76,8 +77,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 		// Generate a list of all seed-pairs that already have an ancestor. We do not need
 		// to look at the new ancestors, because they are necessarily of a deeper depth.
 		PCollectionView<Set<PaperPair>> knownAncestors = oldAncestors
-				.apply("AncestorKeys", Keys.<PaperPair>create()).setCoder(AvroCoder.of(PaperPair.class))
-				.apply("AncestorKeySet", Combine.globally(new SetUnionFn<PaperPair>()))
+				.apply("AncestorKeys", Keys.create())
+				.apply("AncestorKeySet", Combine.globally(new SetUnionFn<>()))
 				.apply("KnownAncestors", View.asSingleton());
 		/* Join the oldDelta with the graph to get the new set of one-hop edges. */
 		TupleTag<Reachable> keyedDeltaTag = new TupleTag<Reachable>(){};
@@ -89,6 +90,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 				.apply("ComputeNewAncestors", ParDo
 						.withSideInputs(knownAncestors, paperYears)
 						.of(new DoFn<KV<Integer, CoGbkResult>, KV<PaperPair, Ancestor>>(){
+						  private List<Reachable> delta = null;
 							@Override
 							public void processElement(ProcessContext c) throws Exception {
 								// Key is the ancestor -- both delta and reachable vertices can reach it.
@@ -97,8 +99,11 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 								CoGbkResult join = result.getValue();
 								Set<PaperPair> alreadyFound = c.sideInput(knownAncestors);
 								Map<Integer, Integer> ancestorYears = c.sideInput(paperYears);
-								for (Reachable r1 : join.getAll(keyedDeltaTag)) {
-									for (Reachable r2 : join.getAll(keyedReachableTag)) {
+                if (delta == null) {
+                  delta = Lists.newArrayList(join.getAll(keyedDeltaTag));
+                }
+                for (Reachable r2 : join.getAll(keyedReachableTag)) {
+								  for (Reachable r1 : delta) {
 										if (r1.dst == r2.dst) {
 											// Skip delta join delta, which happens since reachable already contains delta.
 											continue;
@@ -119,8 +124,13 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
 				.apply("NewLeastCommonAncestors", Min.perKey());
 		PCollection<KV<PaperPair, Ancestor>> newLCAs =
 				PCollectionList.of(oldAncestors).and(newAncestors)
-				.apply("CombinedCommonAncestors", Flatten.<KV<PaperPair, Ancestor>>pCollections())
-				.apply("LeastCommonAncestors", new Reshuffle<>());
+				.apply("CombinedCommonAncestors", Flatten.<KV<PaperPair, Ancestor>>pCollections());
+
+		/* Every few steps, insert an extra reshuffle to break too much flatten unzipping. */
+		if (step % 5 == 1) {
+			newLCAs = newLCAs
+					.apply("LeastCommonAncestors", new Reshuffle<>());
+		}
 
 		PCollection<KV<Integer, Integer>> graphOut = input.get(graphTag);
 		/* Join the oldDelta with the graph to get the new set of one-hop edges. */
