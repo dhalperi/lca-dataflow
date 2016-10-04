@@ -1,7 +1,5 @@
 package edu.washington.escience.lca;
 
-import java.util.Map;
-
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Description;
@@ -18,6 +16,8 @@ import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+
+import java.util.Map;
 
 @SuppressWarnings("serial")
 public class CommonAncestors extends PTransform<PCollection<KV<Integer, Reachable>>, PCollection<KV<PaperPair, Ancestor>>> {
@@ -67,7 +67,7 @@ public class CommonAncestors extends PTransform<PCollection<KV<Integer, Reachabl
 		@Override
 		public Ancestor apply(Ancestor left, Ancestor right) {
 			// First factor: smaller max depth
-			int depth_cmp = left.depth - right.depth;
+			int depth_cmp = left.getDepth() - right.getDepth();
 			if (depth_cmp < 0) {
 				return left;
 			} else if (depth_cmp > 0)  {
