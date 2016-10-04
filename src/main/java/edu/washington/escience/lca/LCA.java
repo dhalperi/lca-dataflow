@@ -1,11 +1,5 @@
 package edu.washington.escience.lca;
 
-import java.util.Map;
-import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -15,15 +9,23 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Runs the Least Common Ancestors algorithm for the specified citations dataset.
@@ -84,6 +86,8 @@ public class LCA {
 				.apply("Filter_paper_years",
 						ParDo.withSideInputs(papers)
 						.of(new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>() {
+							private Aggregator<Integer, Integer> droppedPapers =
+									createAggregator("dropped papers", new Sum.SumIntegerFn());
 							@Override
 							public void processElement(ProcessContext c) {
 								Map<Integer, Integer> papersMap = c.sideInput(papers);
@@ -91,7 +95,8 @@ public class LCA {
 								Integer sourceYear = papersMap.get(cite.getKey());
 								Integer dstYear = papersMap.get(cite.getValue());
 								if (sourceYear == null || dstYear == null || sourceYear < dstYear) {
-									LOG.warn("Dropping link {}({}) -> {}({})", cite.getKey(), sourceYear, cite.getValue(), dstYear);
+									droppedPapers.addValue(1);
+//									LOG.warn("Dropping link {}({}) -> {}({})", cite.getKey(), sourceYear, cite.getValue(), dstYear);
 									return;
 								}
 								c.output(cite);
@@ -169,7 +174,7 @@ public class LCA {
 
 		ancestors
 		.apply("StringifyLCAs", ParDo.of(new StringifyLCAs()))
-		.apply("OutputLCAs", TextIO.Write.to(options.getOutputDirectory() + "/lcas").withSuffix(".txt"));
+		.apply("OutputLCAs", TextIO.Write.to(options.getOutputDirectory() + "/lcas").withSuffix(".txt").withNumShards(1));
 
 		p.run();
 	}
