@@ -173,9 +173,6 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
             .withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag))
             .of(new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>(){
               private static final long serialVersionUID = 1L;
-
-              private Aggregator<Integer, Integer> emptyKnown =
-                  createAggregator("empty known", new Sum.SumIntegerFn());
               @Override
               public void processElement(ProcessContext c) throws Exception {
                 KV<Integer, CoGbkResult> result = c.element();
@@ -188,10 +185,6 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                 for (Reachable r : newReachable) {
                   verify(alreadyKnown.add(r.dst),
                       "Adding already known destination %s to src %s", r.dst, source);
-                }
-                if (alreadyKnown.isEmpty()) {
-                  emptyKnown.addValue(1);
-                  return;
                 }
                 for (Reachable r : join.getAll(keyedJoinResultTag)) {
                   if (alreadyKnown.add(r.dst)) {
