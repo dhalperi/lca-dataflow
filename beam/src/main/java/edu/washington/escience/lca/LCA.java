@@ -1,6 +1,8 @@
 package edu.washington.escience.lca;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.TextIO;
@@ -82,51 +84,15 @@ public class LCA {
     // graphOut is edges where src cites destination
     PCollection<KV<Integer, Integer>> graphOut = p
         .apply(new LoadGraph("jstor", options.getGraphFile(), options.getGraphDestFirst()))
-        .apply("Filter_paper_years",
-            ParDo.withSideInputs(papers)
-            .of(new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>() {
-              private Aggregator<Integer, Integer> droppedPapers =
-                  createAggregator("dropped papers", new Sum.SumIntegerFn());
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                Map<Integer, Integer> papersMap = c.sideInput(papers);
-                KV<Integer, Integer> cite = c.element();
-                Integer sourceYear = papersMap.get(cite.getKey());
-                Integer dstYear = papersMap.get(cite.getValue());
-                if (sourceYear == null || dstYear == null || sourceYear < dstYear) {
-                  droppedPapers.addValue(1);
-                  LOG.debug("Dropping link {}({}) -> {}({})", cite.getKey(), sourceYear, cite.getValue(), dstYear);
-                  return;
-                }
-                c.output(cite);
-              }
-            }));
+        .apply("Filter_paper_years", ParDo.withSideInputs(papers).of(new FilterPapersFn(papers)));
 
     PCollectionView<Set<Integer>> seedsView = p
         .apply(new LoadSeeds("seeds", options.getSeedsFile()))
         .apply("seeds", View.asSingleton());
 
     PCollection<KV<Integer, Reachable>> reachable0 = graphOut
-        .apply("FilterSeeds", ParDo.withSideInputs(seedsView).of(
-            new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>(){
-              @ProcessElement
-              public void processElement(ProcessContext c) throws Exception {
-                KV<Integer, Integer> link = c.element();
-                Set<Integer> seeds = c.sideInput(seedsView);
-                if (seeds.contains(link.getKey())) {
-                  // The source of the link is a seed vertex
-                  c.output(link);
-                }
-              }
-            }))
-        .apply("Reachable_0", ParDo.of(
-            new DoFn<KV<Integer, Integer>, KV<Integer, Reachable>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) throws Exception {
-                KV<Integer, Integer> link = c.element();
-                c.output(KV.of(link.getValue(), Reachable.of(link.getKey(), 1)));
-              }
-            }));
+        .apply("FilterSeeds", ParDo.withSideInputs(seedsView).of(new FilterSeedsFn(seedsView)))
+        .apply("Reachable_0", ParDo.of(new InitializeReachableFn()));
 
     PCollection<KV<Integer, Reachable>> delta0 = reachable0;
 
@@ -175,6 +141,65 @@ public class LCA {
     .apply("StringifyLCAs", ParDo.of(new StringifyLCAs()))
     .apply("OutputLCAs", TextIO.Write.to(options.getOutputDirectory() + "/lcas").withSuffix(".txt").withNumShards(1));
 
-    p.run().waitUntilFinish();
+    PipelineResult result = p.run();
+    State state = result.waitUntilFinish();
+    if (!state.isTerminal()) {
+      throw new RuntimeException(
+          String.format("Job did not actually finish! Result: %s state: %s", result, state));
+    }
+  }
+
+  private static class FilterSeedsFn extends DoFn<KV<Integer, Integer>, KV<Integer, Integer>> {
+
+    private final PCollectionView<Set<Integer>> seedsView;
+
+    public FilterSeedsFn(PCollectionView<Set<Integer>> seedsView) {
+      this.seedsView = seedsView;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      KV<Integer, Integer> link = c.element();
+      Set<Integer> seeds = c.sideInput(seedsView);
+      if (seeds.contains(link.getKey())) {
+        // The source of the link is a seed vertex
+        c.output(link);
+      }
+    }
+  }
+
+  private static class InitializeReachableFn extends
+      DoFn<KV<Integer, Integer>, KV<Integer, Reachable>> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      KV<Integer, Integer> link = c.element();
+      c.output(KV.of(link.getValue(), Reachable.of(link.getKey(), 1)));
+    }
+  }
+
+  private static class FilterPapersFn extends DoFn<KV<Integer, Integer>, KV<Integer, Integer>> {
+
+    private final PCollectionView<Map<Integer, Integer>> papers;
+    private Aggregator<Integer, Integer> droppedPapers;
+
+    public FilterPapersFn(PCollectionView<Map<Integer, Integer>> papers) {
+      this.papers = papers;
+      droppedPapers = createAggregator("dropped papers", new Sum.SumIntegerFn());
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      Map<Integer, Integer> papersMap = c.sideInput(papers);
+      KV<Integer, Integer> cite = c.element();
+      Integer sourceYear = papersMap.get(cite.getKey());
+      Integer dstYear = papersMap.get(cite.getValue());
+      if (sourceYear == null || dstYear == null || sourceYear < dstYear) {
+        droppedPapers.addValue(1);
+        LOG.debug("Dropping link {}({}) -> {}({})", cite.getKey(), sourceYear, cite.getValue(), dstYear);
+        return;
+      }
+      c.output(cite);
+    }
   }
 }
