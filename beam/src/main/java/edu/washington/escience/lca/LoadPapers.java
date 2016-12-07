@@ -37,12 +37,12 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
       String line = c.element();
       String[] split = line.split(",", 2);
       if (split.length != 2) {
-        LOG.warn("LoadPapers: Skipping line {}", line);
+        LOG.debug("LoadPapers: Skipping line {}", line);
       }
       try {
         c.output(KV.of(Integer.parseInt(split[0]), Integer.parseInt(split[1])));
       } catch (NumberFormatException e) {
-        LOG.warn("LoadPapers: Skipping line {}", line);
+        LOG.debug("LoadPapers: Skipping line {}", line);
       }
     }
   }

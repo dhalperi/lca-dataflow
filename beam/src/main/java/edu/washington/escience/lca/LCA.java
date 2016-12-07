@@ -175,6 +175,6 @@ public class LCA {
     .apply("StringifyLCAs", ParDo.of(new StringifyLCAs()))
     .apply("OutputLCAs", TextIO.Write.to(options.getOutputDirectory() + "/lcas").withSuffix(".txt").withNumShards(1));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }
