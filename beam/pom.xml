@@ -5,7 +5,7 @@
   <version>0.0.1-SNAPSHOT</version>
 
   <properties>
-    <beam.version>0.4.0-incubating-SNAPSHOT</beam.version>
+    <beam.version>0.4.0-incubating</beam.version>
   </properties>
 
   <repositories>
@@ -18,6 +18,17 @@
       </releases>
       <snapshots>
         <enabled>true</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>apache.staging</id>
+      <name>Apache Development Staging Repository</name>
+      <url>https://repository.apache.org/content/repositories/staging/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
       </snapshots>
     </repository>
   </repositories>

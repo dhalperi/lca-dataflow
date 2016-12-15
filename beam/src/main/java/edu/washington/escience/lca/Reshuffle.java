@@ -38,7 +38,7 @@ public class Reshuffle<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   @Override
   public
-  PCollection<T> apply(PCollection<T> input) {
+  PCollection<T> expand(PCollection<T> input) {
     return input.apply(ParDo.of(new AddArbitraryKey<T>())).setCoder(
         KvCoder.of(VarIntCoder.of(), input.getCoder()))
         .apply(GroupByKey.create())

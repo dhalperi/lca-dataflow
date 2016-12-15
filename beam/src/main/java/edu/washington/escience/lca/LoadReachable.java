@@ -19,7 +19,7 @@ public class LoadReachable extends PTransform<PInput, PCollection<KV<Integer, Re
   }
 
   @Override
-  public PCollection<KV<Integer, Reachable>> apply(PInput input) {
+  public PCollection<KV<Integer, Reachable>> expand(PInput input) {
     return input.getPipeline()
         .apply("Read_" + name, TextIO.Read.from(path))
         .apply("ConvertToReachables_" + name, ParDo.of(new ExtractReachableDoFn()));

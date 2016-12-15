@@ -53,7 +53,7 @@ public class CommonAncestors extends
   }
 
   @Override
-  public PCollection<KV<PaperPair, Ancestor>> apply(PCollection<KV<Integer, Reachable>> input) {
+  public PCollection<KV<PaperPair, Ancestor>> expand(PCollection<KV<Integer, Reachable>> input) {
     return input
         .apply("GroupByAncestor", GroupByKey.create())
         .apply("GeneratePairs", ParDo.withSideInputs(papers).of(new GenerateAncestors(papers)))

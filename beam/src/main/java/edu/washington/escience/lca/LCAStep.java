@@ -72,7 +72,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
   }
 
   @Override
-  public PCollectionTuple apply(PCollectionTuple input) {
+  public PCollectionTuple expand(PCollectionTuple input) {
     PCollection<KV<Integer, Reachable>> oldDelta = input.get(deltaInTag);
     PCollection<KV<Integer, Reachable>> oldReachable = input.get(reachableInTag);
     PCollection<KV<PaperPair, Ancestor>> oldAncestors = input.get(ancestorsInTag);

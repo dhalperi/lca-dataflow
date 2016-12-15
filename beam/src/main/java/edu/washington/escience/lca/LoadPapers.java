@@ -71,7 +71,7 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
   }
 
   @Override
-  public PCollection<Map<Integer, Integer>> apply(PInput input) {
+  public PCollection<Map<Integer, Integer>> expand(PInput input) {
     return input.getPipeline()
         .apply("Read_" + name, TextIO.Read.from(path))
         .apply(name, ParDo.of(new ExtractPaper()))

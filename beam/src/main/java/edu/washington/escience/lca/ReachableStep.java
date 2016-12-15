@@ -51,7 +51,7 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
   }
 
   @Override
-  public PCollectionTuple apply(PCollectionTuple input) {
+  public PCollectionTuple expand(PCollectionTuple input) {
     PCollection<KV<Integer, Reachable>> oldDelta = input.get(deltaInTag);
     PCollection<KV<Integer, Integer>> graphOut = input.get(graphTag);
 

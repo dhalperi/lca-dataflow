@@ -46,7 +46,7 @@ public class LoadGraph extends PTransform<PInput, PCollection<KV<Integer, Intege
   }
 
   @Override
-  public PCollection<KV<Integer, Integer>> apply(PInput input) {
+  public PCollection<KV<Integer, Integer>> expand(PInput input) {
     return input.getPipeline()
         .apply("Read" + name, TextIO.Read.from(path))
         .apply("ConvertToInts", ParDo.of(new ExtractLinkDoFn(destFirst)));
