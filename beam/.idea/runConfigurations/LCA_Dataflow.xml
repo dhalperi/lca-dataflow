@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="LCA Dataflow" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="edu.washington.escience.lca.LCA" />
+    <module name="lca-beam" />
+    <option name="PROGRAM_PARAMETERS" value="--runner=Dataflow --project=dhalperi-lineage-90523 --outputDirectory=gs://jstor/output-2019/ --papersFile=gs://jstor/nodes_jstor.txt --graphFile=gs://jstor/links_jstor.txt --seedsFile=gs://jstor/jstor_top_paperIDs.txt" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="edu.washington.escience.lca.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
