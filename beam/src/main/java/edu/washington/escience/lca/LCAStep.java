@@ -80,8 +80,10 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                 "ComputeNewAncestors",
                 ParDo.of(
                         new DoFn<KV<Integer, CoGbkResult>, KV<PaperPair, Ancestor>>() {
-                          private Aggregator<Integer, Integer> emptyDeltas =
-                              createAggregator("empty deltas", new Sum.SumIntegerFn());
+                          //                          private Aggregator<Integer, Integer>
+                          // emptyDeltas =
+                          //                              createAggregator("empty deltas", new
+                          // Sum.SumIntegerFn());
 
                           @ProcessElement
                           public void processElement(ProcessContext c) throws Exception {
@@ -94,7 +96,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                             Map<Integer, Integer> ancestorYears = c.sideInput(paperYears);
                             List<Reachable> delta = Lists.newArrayList(join.getAll(keyedDeltaTag));
                             if (delta.isEmpty()) {
-                              emptyDeltas.addValue(1);
+                              //                              emptyDeltas.addValue(1);
                               return;
                             }
                             for (Reachable r2 : join.getAll(keyedReachableTag)) {

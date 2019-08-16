@@ -199,11 +199,11 @@ public class LCA {
   private static class FilterPapersFn extends DoFn<KV<Integer, Integer>, KV<Integer, Integer>> {
 
     private final PCollectionView<Map<Integer, Integer>> papers;
-    private Aggregator<Integer, Integer> droppedPapers;
+//    private Aggregator<Integer, Integer> droppedPapers;
 
     public FilterPapersFn(PCollectionView<Map<Integer, Integer>> papers) {
       this.papers = papers;
-      droppedPapers = createAggregator("dropped papers", new Sum.SumIntegerFn());
+//      droppedPapers = createAggregator("dropped papers", new Sum.SumIntegerFn());
     }
 
     @ProcessElement
@@ -213,7 +213,7 @@ public class LCA {
       Integer sourceYear = papersMap.get(cite.getKey());
       Integer dstYear = papersMap.get(cite.getValue());
       if (sourceYear == null || dstYear == null || sourceYear < dstYear) {
-        droppedPapers.addValue(1);
+//        droppedPapers.addValue(1);
         LOG.debug(
             "Dropping link {}({}) -> {}({})", cite.getKey(), sourceYear, cite.getValue(), dstYear);
         return;
