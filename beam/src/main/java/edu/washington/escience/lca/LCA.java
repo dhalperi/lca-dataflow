@@ -24,7 +24,7 @@ import java.util.Set;
 public class LCA {
   private static final Logger LOG = LoggerFactory.getLogger(LCA.class);
 
-  interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Description("The number of iterations in the reachability computation")
     @Default.Integer(3)
     int getNumIterations();
