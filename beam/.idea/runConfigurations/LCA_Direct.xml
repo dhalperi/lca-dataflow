@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="LCA Direct" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="edu.washington.escience.lca.LCA" />
+    <module name="lca-beam" />
+    <option name="PROGRAM_PARAMETERS" value="--outputDirectory=/tmp/lineage --papersFile=$PROJECT_DIR$/../input/papers.txt --graphFile=$PROJECT_DIR$/../input/links.txt --seedsFile=$PROJECT_DIR$/../input/seeds.txt" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="edu.washington.escience.lca.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
