@@ -90,8 +90,7 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
             .apply("CoGroupReachableAndDelta_" + step, CoGroupByKey.<Integer>create())
             .apply(
                 "UpdateReachableAndDelta_" + step,
-                ParDo.withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag))
-                    .of(
+                ParDo.of(
                         new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>() {
                           private static final long serialVersionUID = 1L;
 
@@ -124,10 +123,11 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
                             }
                             // Emit all the new delta set, which has been uniquified and deltaed.
                             for (Reachable d : newDelta) {
-                              c.sideOutput(deltaOutTag, KV.of(source, d));
+                              c.output(deltaOutTag, KV.of(source, d));
                             }
                           }
-                        }));
+                        })
+                    .withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag)));
 
     if (debug) {
       output
@@ -135,7 +135,7 @@ public class ReachableStep extends PTransform<PCollectionTuple, PCollectionTuple
           .apply("StringifyDelta_" + step, ParDo.of(new StringifyReachable()))
           .apply(
               "OutputDelta_" + step,
-              TextIO.Write.to(outputDirectory + "/delta" + step).withSuffix(".txt"));
+              TextIO.write().to(outputDirectory + "/delta" + step).withSuffix(".txt"));
     }
 
     return output;

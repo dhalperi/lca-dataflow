@@ -78,8 +78,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
             .apply("JoinDeltaWithReachable", CoGroupByKey.<Integer>create())
             .apply(
                 "ComputeNewAncestors",
-                ParDo.withSideInputs(knownAncestors, paperYears)
-                    .of(
+                ParDo.of(
                         new DoFn<KV<Integer, CoGbkResult>, KV<PaperPair, Ancestor>>() {
                           private Aggregator<Integer, Integer> emptyDeltas =
                               createAggregator("empty deltas", new Sum.SumIntegerFn());
@@ -124,7 +123,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                               }
                             }
                           }
-                        }))
+                        })
+                    .withSideInputs(knownAncestors, paperYears))
             .apply("NewLeastCommonAncestors", Min.perKey());
     PCollection<KV<PaperPair, Ancestor>> newLCAs =
         PCollectionList.of(oldAncestors)
@@ -174,7 +174,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
             .apply("CoGroupReachableAndDelta", CoGroupByKey.create())
             .apply(
                 "UpdateReachableAndDelta",
-                ParDo.withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag))
+                ParDo
                     .of(
                         new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>() {
                           private static final long serialVersionUID = 1L;
@@ -208,10 +208,10 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                             }
                             // Emit all the new delta set, which has been uniquified and deltaed.
                             for (Reachable d : newDelta) {
-                              c.sideOutput(deltaOutTag, KV.of(source, d));
+                              c.output(deltaOutTag, KV.of(source, d));
                             }
                           }
-                        }));
+                        }).withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag)));
 
     if (debug) {
       newDeltaAndReachable

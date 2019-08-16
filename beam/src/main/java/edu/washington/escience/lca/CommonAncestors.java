@@ -53,7 +53,7 @@ public class CommonAncestors
   public PCollection<KV<PaperPair, Ancestor>> expand(PCollection<KV<Integer, Reachable>> input) {
     return input
         .apply("GroupByAncestor", GroupByKey.create())
-        .apply("GeneratePairs", ParDo.withSideInputs(papers).of(new GenerateAncestors(papers)))
+        .apply("GeneratePairs", ParDo.of(new GenerateAncestors(papers)).withSideInputs(papers))
         .apply("LeastCommonAncestor", Combine.perKey(new AncestorCombineFn()));
   }
 

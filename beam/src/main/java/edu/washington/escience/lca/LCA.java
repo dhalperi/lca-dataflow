@@ -82,14 +82,14 @@ public class LCA {
     PCollection<KV<Integer, Integer>> graphOut =
         p.apply(new LoadGraph("jstor", options.getGraphFile(), options.getGraphDestFirst()))
             .apply(
-                "Filter_paper_years", ParDo.withSideInputs(papers).of(new FilterPapersFn(papers)));
+                "Filter_paper_years", ParDo.of(new FilterPapersFn(papers)).withSideInputs(papers));
 
     PCollectionView<Set<Integer>> seedsView =
         p.apply(new LoadSeeds("seeds", options.getSeedsFile())).apply("seeds", View.asSingleton());
 
     PCollection<KV<Integer, Reachable>> reachable0 =
         graphOut
-            .apply("FilterSeeds", ParDo.withSideInputs(seedsView).of(new FilterSeedsFn(seedsView)))
+            .apply("FilterSeeds", ParDo.of(new FilterSeedsFn(seedsView)).withSideInputs(seedsView))
             .apply("Reachable_0", ParDo.of(new InitializeReachableFn()));
 
     PCollection<KV<Integer, Reachable>> delta0 = reachable0;
@@ -100,9 +100,7 @@ public class LCA {
     PCollection<KV<PaperPair, Ancestor>> ancestors =
         p.apply(
             "Ancestors_0",
-            Create.<KV<PaperPair, Ancestor>>of()
-                .withCoder(
-                    KvCoder.of(AvroCoder.of(PaperPair.class), AvroCoder.of(Ancestor.class))));
+            Create.empty(KvCoder.of(AvroCoder.of(PaperPair.class), AvroCoder.of(Ancestor.class))));
 
     for (int i = 1; i < options.getNumIterations(); ++i) {
       TupleTag<KV<Integer, Integer>> graphTag = new TupleTag<KV<Integer, Integer>>() {};
@@ -144,20 +142,20 @@ public class LCA {
           .apply("StringifyReachable0", ParDo.of(new StringifyReachable()))
           .apply(
               "OutputReachable0",
-              TextIO.Write.to(options.getOutputDirectory() + "/reachable0").withSuffix(".txt"));
+              TextIO.write().to(options.getOutputDirectory() + "/reachable0").withSuffix(".txt"));
 
       reachable
           .apply("StringifyReachable", ParDo.of(new StringifyReachable()))
           .apply(
               "OutputReachable",
-              TextIO.Write.to(options.getOutputDirectory() + "/reachable").withSuffix(".txt"));
+              TextIO.write().to(options.getOutputDirectory() + "/reachable").withSuffix(".txt"));
     }
 
     ancestors
         .apply("StringifyLCAs", ParDo.of(new StringifyLCAs()))
         .apply(
             "OutputLCAs",
-            TextIO.Write.to(options.getOutputDirectory() + "/lcas")
+            TextIO.write().to(options.getOutputDirectory() + "/lcas")
                 .withSuffix(".txt")
                 .withNumShards(1));
 
