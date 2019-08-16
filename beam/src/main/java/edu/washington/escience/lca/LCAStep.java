@@ -176,8 +176,7 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
             .apply("CoGroupReachableAndDelta", CoGroupByKey.create())
             .apply(
                 "UpdateReachableAndDelta",
-                ParDo
-                    .of(
+                ParDo.of(
                         new DoFn<KV<Integer, CoGbkResult>, KV<Integer, Reachable>>() {
                           private static final long serialVersionUID = 1L;
 
@@ -213,7 +212,8 @@ public class LCAStep extends PTransform<PCollectionTuple, PCollectionTuple> {
                               c.output(deltaOutTag, KV.of(source, d));
                             }
                           }
-                        }).withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag)));
+                        })
+                    .withOutputTags(reachableOutTag, TupleTagList.of(deltaOutTag)));
 
     if (debug) {
       newDeltaAndReachable
