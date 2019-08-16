@@ -1,7 +1,6 @@
 package edu.washington.escience.lca;
 
 import com.google.common.collect.ComparisonChain;
-
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 
@@ -22,6 +21,7 @@ public class Ancestor implements Comparable<Ancestor> {
 
   /////////////////////////////////////////////////////////////////////////////
   public Ancestor() {};
+
   private Ancestor(int id, int d1, int d2, int year) {
     this.id = id;
     this.d1 = d1;
@@ -32,10 +32,10 @@ public class Ancestor implements Comparable<Ancestor> {
   @Override
   public int compareTo(Ancestor o) {
     return ComparisonChain.start()
-        .compare(this.getDepth(), o.getDepth())  // smaller max depth
-        .compare(this.d1 + this.d2, o.d1 + o.d2)  // smaller total depth
-        .compare(o.year, this.year)  // larger year
-        .compare(this.id, o.id)  // smaller id
+        .compare(this.getDepth(), o.getDepth()) // smaller max depth
+        .compare(this.d1 + this.d2, o.d1 + o.d2) // smaller total depth
+        .compare(o.year, this.year) // larger year
+        .compare(this.id, o.id) // smaller id
         .result();
   }
 }

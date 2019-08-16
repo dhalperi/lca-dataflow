@@ -36,8 +36,9 @@ public class LoadSeeds extends PTransform<PInput, PCollection<Set<Integer>>> {
 
   @Override
   public PCollection<Set<Integer>> expand(PInput input) {
-    return input.getPipeline()
-        .apply("Read_" + name, TextIO.Read.from(path))
+    return input
+        .getPipeline()
+        .apply("Read_" + name, TextIO.read().from(path))
         .apply("ConvertToInts_" + name, ParDo.of(new ExtractSeedDoFn()))
         .apply("Unify_" + name, Combine.globally(new SetUnionFn<Integer>()));
   }

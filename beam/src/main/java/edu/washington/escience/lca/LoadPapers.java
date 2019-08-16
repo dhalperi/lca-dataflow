@@ -47,15 +47,19 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
     }
   }
 
-  public static class MapUnionFn extends
-      CombineFn<KV<Integer, Integer>, Map<Integer, Integer>, Map<Integer, Integer>> {
+  public static class MapUnionFn
+      extends CombineFn<KV<Integer, Integer>, Map<Integer, Integer>, Map<Integer, Integer>> {
     @Override
-    public Map<Integer, Integer> createAccumulator() { return new HashMap<>(); }
+    public Map<Integer, Integer> createAccumulator() {
+      return new HashMap<>();
+    }
+
     @Override
     public Map<Integer, Integer> addInput(Map<Integer, Integer> accum, KV<Integer, Integer> input) {
       accum.put(input.getKey(), input.getValue());
       return accum;
     }
+
     @Override
     public Map<Integer, Integer> mergeAccumulators(Iterable<Map<Integer, Integer>> accums) {
       Map<Integer, Integer> merged = createAccumulator();
@@ -64,6 +68,7 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
       }
       return merged;
     }
+
     @Override
     public Map<Integer, Integer> extractOutput(Map<Integer, Integer> accum) {
       return accum;
@@ -72,8 +77,9 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
 
   @Override
   public PCollection<Map<Integer, Integer>> expand(PInput input) {
-    return input.getPipeline()
-        .apply("Read_" + name, TextIO.Read.from(path))
+    return input
+        .getPipeline()
+        .apply("Read_" + name, TextIO.read().from(path))
         .apply(name, ParDo.of(new ExtractPaper()))
         .apply("Unify_" + name, Combine.globally(new MapUnionFn()));
   }
@@ -82,6 +88,7 @@ public class LoadPapers extends PTransform<PInput, PCollection<Map<Integer, Inte
     @Description("File containing a list of papers with years and titles")
     @Required
     String getPapersFile();
+
     void setPapersFile(String file);
   }
 

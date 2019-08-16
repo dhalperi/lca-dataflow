@@ -40,16 +40,16 @@ public class LoadGraph extends PTransform<PInput, PCollection<KV<Integer, Intege
           c.output(KV.of(Integer.parseInt(fields[0]), Integer.parseInt(fields[1])));
         }
       } catch (NumberFormatException e) {
-        /* Pass */;
+        /* Pass */ ;
       }
     }
   }
 
   @Override
   public PCollection<KV<Integer, Integer>> expand(PInput input) {
-    return input.getPipeline()
-        .apply("Read" + name, TextIO.Read.from(path))
+    return input
+        .getPipeline()
+        .apply("Read" + name, TextIO.read().from(path))
         .apply("ConvertToInts", ParDo.of(new ExtractLinkDoFn(destFirst)));
   }
-
 }

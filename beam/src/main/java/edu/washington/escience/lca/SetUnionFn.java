@@ -9,7 +9,9 @@ import java.util.Set;
 @SuppressWarnings("serial")
 public class SetUnionFn<T> extends CombineFn<T, Set<T>, Set<T>> {
   @Override
-  public Set<T> createAccumulator() { return new HashSet<>(); }
+  public Set<T> createAccumulator() {
+    return new HashSet<>();
+  }
 
   @Override
   public Set<T> addInput(Set<T> accum, T input) {

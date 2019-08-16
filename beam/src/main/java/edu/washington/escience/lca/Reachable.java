@@ -30,7 +30,7 @@ public class Reachable {
   }
 
   @Override
-  public boolean equals (Object other) {
+  public boolean equals(Object other) {
     if (!(other instanceof Reachable)) {
       return false;
     }

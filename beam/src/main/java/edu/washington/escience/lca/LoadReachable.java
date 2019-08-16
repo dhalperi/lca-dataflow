@@ -20,8 +20,9 @@ public class LoadReachable extends PTransform<PInput, PCollection<KV<Integer, Re
 
   @Override
   public PCollection<KV<Integer, Reachable>> expand(PInput input) {
-    return input.getPipeline()
-        .apply("Read_" + name, TextIO.Read.from(path))
+    return input
+        .getPipeline()
+        .apply("Read_" + name, TextIO.read().from(path))
         .apply("ConvertToReachables_" + name, ParDo.of(new ExtractReachableDoFn()));
   }
 
@@ -33,7 +34,10 @@ public class LoadReachable extends PTransform<PInput, PCollection<KV<Integer, Re
         return;
       }
       try {
-        c.output(KV.of(Integer.parseInt(split[0]), Reachable.of(Integer.parseInt(split[1]), Integer.parseInt(split[2]))));
+        c.output(
+            KV.of(
+                Integer.parseInt(split[0]),
+                Reachable.of(Integer.parseInt(split[1]), Integer.parseInt(split[2]))));
       } catch (NumberFormatException e) {
         /* Pass */
       }
